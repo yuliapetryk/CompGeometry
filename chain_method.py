@@ -5,6 +5,10 @@ from point import Point
 
 
 def find_point(vertices, edges, point):
+
+    if check_vertex(point, vertices) or check_edge(point, edges):
+        return
+
     in_edges = [[] for _ in vertices]
     out_edges = [[] for _ in vertices]
 
@@ -15,7 +19,6 @@ def find_point(vertices, edges, point):
 
 
 def adjust_edge_weights(vertices, edges, in_edges, out_edges):
-
     assign_edges_to_vertices(vertices, edges, in_edges, out_edges)
 
     balance_bottom_up(vertices, in_edges, out_edges)
@@ -62,18 +65,6 @@ def sort(edges):
     return sorted(edges, key=lambda edge: edge.rotation, reverse=True)
 
 
-def create_chains(vertices, edges_out):
-    chains = [[] for _ in range(calculate_weight(edges_out[0]))]
-    ordered_edges_out = [sort(v) for v in edges_out]
-
-    for j in range(len(chains)):
-        create_chain(j, ordered_edges_out, chains, vertices)
-
-    print_chains(vertices, chains)
-
-    return chains
-
-
 def print_chains(vertices, chains):
     for i, chain in enumerate(chains):
         print(f"Chain {i}: {vertices.index(chain[0].start)}", end="")
@@ -82,22 +73,27 @@ def print_chains(vertices, chains):
         print()
 
 
-def create_chain(chain_num, ordered_edges_out, chains, vertices):
-    current_vertex_index = 0
-    num_vertices = len(vertices)
+def create_chains(vertices, edges_out):
+    chains = [[] for _ in range(calculate_weight(edges_out[0]))]
+    ordered_edges_out = [sort(v) for v in edges_out]
 
-    while current_vertex_index != num_vertices - 1:
-        new_edge = get_next_edge(ordered_edges_out[current_vertex_index])
-        chains[chain_num].append(new_edge)
-        new_edge.weight -= 1
-        current_vertex_index = vertices.index(new_edge.end)
+    for j in range(len(chains)):
+        current_vertex_index = 0
+        num_vertices = len(vertices)
 
+        while current_vertex_index != num_vertices - 1:
+            for edge in ordered_edges_out[current_vertex_index]:
+                if edge.weight > 0:
+                    chains[j].append(edge)
+                    edge.weight -= 1
+                    current_vertex_index = vertices.index(edge.end)
+                    break
+            else:
+                break
 
-def get_next_edge(array):
-    for edge in array:
-        if edge.weight > 0:
-            return edge
-    return None
+    print_chains(vertices, chains)
+
+    return chains
 
 
 def locate_point(point, chains):
@@ -107,13 +103,35 @@ def locate_point(point, chains):
                 point_vector = Point(point.x - edge.start.x, point.y - edge.start.y)
                 edge_vector = Point(edge.end.x - edge.start.x, edge.end.y - edge.start.y)
                 if math.atan2(point_vector.y, point_vector.x) >= math.atan2(edge_vector.y, edge_vector.x):
-                    print(f"Point is between chains {p - 1} , {p}")
-                    return p-1
+                    print(f"Point ({point.x}, {point.y}) is between chains {p - 1}, {p}")
+                    return p - 1
+
+
+def check_vertex(point: Point, vertices: list) -> bool:
+    for vertex in vertices:
+        if point.x == vertex.x and point.y == vertex.y:
+            print(f"Point ({point.x}, {point.y}) is vertex")
+            return True
+    return False
+
+
+def check_edge(point: Point, edges: list):
+    for edge in edges:
+        edge_end = edge.end
+        edge_start = edge.start
+        start_to_point = Point(point.x - edge_start.x, point.y - edge_start.y)
+        start_to_end = Point(edge_end.x - edge_start.x, edge_end.y - edge_start.y)
+        cross_product = start_to_point.x * start_to_end.y - start_to_point.y * start_to_end.x
+
+        if abs(cross_product) < 1e-9 and min(edge_start.x, edge_end.x) <= point.x <= max(edge_start.x, edge_end.x) \
+                and min(edge_start.y, edge_end.y) <= point.y <= max(edge_start.y, edge_end.y):
+            print(f"Point ({point.x}, {point.y}) is on edge")
+            return True
+    return False
 
 
 def show_graph(point, vertices, edges, chains, chain):
-
-    plt.scatter(point.x, point.y, color='red')
+    plt.scatter(point.x, point.y, color='green')
 
     for vertex in vertices:
         plt.scatter(vertex.x, vertex.y, color='black')
@@ -141,4 +159,3 @@ def show_chain(chains, number):
         plt.plot([start.x, end.x],
                  [start.y, end.y],
                  'red')
-
