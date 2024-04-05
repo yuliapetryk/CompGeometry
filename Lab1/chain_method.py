@@ -5,7 +5,9 @@ from point import Point
 
 
 def find_point(vertices, edges, point):
-
+    #if is_regularized_graph:
+       # print("The chain method cannot be used")
+       # return
     if check_vertex(point, vertices) or check_edge(point, edges):
         return
 
@@ -125,7 +127,8 @@ def check_edge(point: Point, edges: list):
 
         if abs(cross_product) < 1e-9 and min(edge_start.x, edge_end.x) <= point.x <= max(edge_start.x, edge_end.x) \
                 and min(edge_start.y, edge_end.y) <= point.y <= max(edge_start.y, edge_end.y):
-            print(f"Point ({point.x}, {point.y}) is on edge")
+            print(
+                f"Point ({point.x}, {point.y}) is on edge ({edge.start.x}, {edge.start.y}), ({edge.end.x}, {edge.end.y})")
             return True
     return False
 
@@ -159,3 +162,19 @@ def show_chain(chains, number):
         plt.plot([start.x, end.x],
                  [start.y, end.y],
                  'red')
+
+
+def is_regularized_graph(vertices: list, edges: list) -> bool:
+    degree_count = {}
+    for vertex in vertices:
+        degree_count[vertex] = 0
+
+    for edge in edges:
+        degree_count[edge.start] += 1
+        degree_count[edge.end] += 1
+
+    first_degree = degree_count[vertices[0]]
+    for degree in degree_count.values():
+        if degree != first_degree:
+            return True
+    return False
