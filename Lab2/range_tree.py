@@ -49,22 +49,30 @@ def check_point(point, x_range, y_range):
 
 
 def search_points(node, x_range, y_range, result):
-    # Перевіряємо, чи точка було горизонтальною чи вертикальною медіаною
-    if node.dim == 0:
-        # Перевіряємо чи медіана лежить у прямокутнику і чи точка лежить
-        if x_range[0] < node.point.x < x_range[1] and check_point(node.point, x_range, y_range):
-            result.append(node.point)
 
-    elif node.dim == 1:
-        # Перевіряємо чи медіана лежить у прямокутнику і чи точка лежить
-        if y_range[0] < node.point.y < y_range[1] and check_point(node.point, x_range, y_range):
-            result.append(node.point)
-
-    # Переходимо до синів
-    if node.left:
-        search_points(node.left, x_range, y_range, result)
-
-    if node.right:
-        search_points(node.right, x_range, y_range, result)
+    check(node, x_range, y_range, result, node.dim)
 
     return result
+
+
+def check(node, x_range, y_range, result, k):
+    if k == 0:
+        axis = node.point.x
+        this_range = x_range
+    else:
+        axis = node.point.y
+        this_range = y_range
+
+    if this_range[0] < axis < this_range[1]:
+        if check_point(node.point, x_range, y_range):
+            result.append(node.point)
+        if node.left:
+            search_points(node.left, x_range, y_range, result)
+        if node.right:
+            search_points(node.right, x_range, y_range, result)
+    if this_range[1] < axis:
+        if node.left:
+            search_points(node.left, x_range, y_range, result)
+    else:
+        if node.right:
+            search_points(node.right, x_range, y_range, result)
