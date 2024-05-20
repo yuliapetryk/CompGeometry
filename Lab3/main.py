@@ -1,27 +1,134 @@
+import heapq
+
 from matplotlib import pyplot as plt
 from sortedcontainers import SortedList
-from collections import namedtuple
 
-Point = namedtuple('Point', ['x', 'y'])
-Event = namedtuple('Event', ['point', 'type', 'segment'])
+
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __lt__(self, other):
+        if self.x == other.x:
+            return self.y < other.y
+        return self.x < other.x
+
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y
+
+    def __hash__(self):
+        return hash((self.x, self.y))
+
+    def __repr__(self):
+        return f"({self.x}, {self.y})"
 
 
 class Segment:
-    def __init__(self, p1, p2):
-        self.p1 = p1
-        self.p2 = p2
+    def __init__(self, start, end):
+        if start > end:
+            start, end = end, start
+        self.start = start
+        self.end = end
 
-        if p1.x < p2.x or (p1.x == p2.x and p1.y < p2.y):
-            self.start, self.end = p1, p2
-        else:
-            self.start, self.end = p2, p1
+    def __repr__(self):
+        return f"Segment({self.start}, {self.end})"
+
+
+class Event:
+    def __init__(self, event_type, point, segment1, segment2=None):
+        self.event_type = event_type
+        self.point = point
+        self.segment1 = segment1
+        self.segment2 = segment2
 
     def __lt__(self, other):
-        return (self.start.x, self.start.y, self.end.x, self.end.y) < (
-            other.start.x, other.start.y, other.end.x, other.end.y)
+        return self.point < other.point
+
+    def __repr__(self):
+        return f"Event({self.event_type}, {self.point}, {self.segment1}, {self.segment2})"
 
 
-def intersect(segment1, segment2):
+def find_intersections(segments):
+    event_queue = []
+    sweep_line = SortedList(key=lambda seg: (seg.start.y, seg.end.y))
+    intersections = set()
+
+    for segment in segments:
+        heapq.heappush(event_queue, Event('left', segment.start, segment))
+        heapq.heappush(event_queue, Event('right', segment.end, segment))
+
+    while event_queue:
+        event = heapq.heappop(event_queue)
+        if event.event_type == 'left':
+            handle_left_event(event, sweep_line, event_queue)
+        elif event.event_type == 'right':
+            handle_right_event(event, sweep_line, event_queue)
+        elif event.event_type == 'intersection':
+            handle_intersection_event(event, sweep_line, event_queue, intersections)
+
+    return list(intersections)
+
+
+def handle_left_event(event, sweep_line, event_queue):
+    segE = event.segment1
+    sweep_line.add(segE)
+
+    idx = sweep_line.index(segE)
+    segA = sweep_line[idx + 1] if idx + 1 < len(sweep_line) else None
+    segB = sweep_line[idx - 1] if idx - 1 >= 0 else None
+
+    check_and_add_intersection(segE, segA, event_queue)
+    check_and_add_intersection(segE, segB, event_queue)
+
+
+def handle_right_event(event, sweep_line, event_queue):
+    segE = event.segment1
+    idx = sweep_line.index(segE)
+    segA = sweep_line[idx + 1] if idx + 1 < len(sweep_line) else None
+    segB = sweep_line[idx - 1] if idx - 1 >= 0 else None
+
+    sweep_line.remove(segE)
+
+    if segA and segB:
+        check_and_add_intersection(segA, segB, event_queue)
+
+
+def handle_intersection_event(event, sweep_line, event_queue, intersections):
+    intersection_info = (event.point, event.segment1, event.segment2)
+    if intersection_info not in intersections:
+        intersections.add(intersection_info)
+
+    segE1 = event.segment1
+    segE2 = event.segment2
+
+    idx1 = sweep_line.index(segE1)
+    idx2 = sweep_line.index(segE2)
+
+    sweep_line.remove(segE1)
+    sweep_line.remove(segE2)
+
+    sweep_line.add(segE2)
+    sweep_line.add(segE1)
+
+    idx1, idx2 = sorted([idx1, idx2])
+    segA = sweep_line[idx2 + 1] if idx2 + 1 < len(sweep_line) else None
+    segB = sweep_line[idx1 - 1] if idx1 - 1 >= 0 else None
+
+    check_and_add_intersection(segE1, segA, event_queue)
+    check_and_add_intersection(segE2, segB, event_queue)
+
+
+def check_and_add_intersection(seg1, seg2, event_queue):
+    if not seg1 or not seg2:
+        return
+    intersection_point = find_intersection(seg1, seg2)
+    if intersection_point:
+        heapq.heappush(event_queue, Event('intersection', intersection_point, seg1, seg2))
+
+
+def find_intersection(segment1, segment2):
+
     def orientation(left, point, right):
         return (point.y - left.y) * (right.x - point.x) - (point.x - left.x) * (right.y - point.y)
 
@@ -55,47 +162,14 @@ def intersect(segment1, segment2):
     return None
 
 
-def find_intersections(segments):
-    events = []
-
-    for segment in segments:
-        events.append(Event(segment.start, 'start', segment))
-        events.append(Event(segment.end, 'end', segment))
-
-    events.sort(key=lambda e: (e.point.x, e.point.y))
-
-    active_segments = SortedList()
-    intersections = []
-
-    def add_intersection(segment1, segment2):
-        point = intersect(segment1, segment2)
-        if point:
-            intersections.append((point, segment1, segment2))
-
-    for event in events:
-        if event.type == 'start':
-            idx = active_segments.bisect_left(event.segment)
-            active_segments.add(event.segment)
-            if idx > 0:
-                add_intersection(active_segments[idx - 1], event.segment)
-            if idx < len(active_segments) - 1:
-                add_intersection(active_segments[idx], active_segments[idx + 1])
-        elif event.type == 'end':
-            idx = active_segments.index(event.segment)
-            if 0 < idx < len(active_segments) - 1:
-                add_intersection(active_segments[idx - 1], active_segments[idx + 1])
-            active_segments.remove(event.segment)
-
-    return intersections
-
-
 def plot_segments_and_intersections(segments, intersections):
     plt.figure(figsize=(10, 10))
 
     for segment in segments:
-        plt.plot([segment.p1.x, segment.p2.x], [segment.p1.y, segment.p2.y], 'b')
+        plt.plot([segment.start.x, segment.end.x], [segment.start.y, segment.end.y], 'b')
 
-    for point, segment1, segment2 in intersections:
+    for intersection in intersections:
+        point, seg1, seg2 = intersection
         plt.plot(point.x, point.y, 'ro')
 
     plt.grid(True)
@@ -107,12 +181,13 @@ segments = [
     Segment(Point(1, 4), Point(8, 1)),
     Segment(Point(0, 2), Point(16, 7)),
     Segment(Point(13, 8), Point(10, 2)),
-    Segment(Point(5, 1), Point(12, 5))
+    Segment(Point(5, 4), Point(15, 4))
 ]
 
 intersections = find_intersections(segments)
 
-for point, segment1, segment2 in intersections:
-    print(f"{segment1.p1, segment1.p2} and {segment2.p1, segment2.p2} intersect at  {point}")
+for intersection in intersections:
+    point, seg1, seg2 = intersection
+    print(f"Intersection at: {point} between {seg1} and {seg2}")
 
-plot_segments_and_intersections(segments, intersections)
+plot_segments_and_intersections(segments,intersections)
