@@ -128,36 +128,21 @@ def check_and_add_intersection(seg1, seg2, event_queue):
 
 
 def find_intersection(segment1, segment2):
+    A1, A2 = segment1.start, segment1.end
+    B1, B2 = segment2.start, segment2.end
 
-    def orientation(left, point, right):
-        return (point.y - left.y) * (right.x - point.x) - (point.x - left.x) * (right.y - point.y)
+    denominator = (A2.x - A1.x) * (B2.y - B1.y) - (A2.y - A1.y) * (B2.x - B1.x)
 
-    def on_segment(left, point, right):
-        return min(left.x, right.x) <= point.x <= max(left.x, right.x) and min(left.y, right.y) <= point.y <= max(left.y, right.y)
+    if denominator == 0:
+        return None
 
-    o1 = orientation(segment1.start, segment1.end, segment2.start)
-    o2 = orientation(segment1.start, segment1.end, segment2.end)
-    o3 = orientation(segment2.start, segment2.end, segment1.start)
-    o4 = orientation(segment2.start, segment2.end, segment1.end)
+    t = ((B1.x - A1.x) * (B2.y - B1.y) - (B1.y - A1.y) * (B2.x - B1.x)) / denominator
+    u = ((B1.x - A1.x) * (A2.y - A1.y) - (B1.y - A1.y) * (A2.x - A1.x)) / denominator
 
-    if o1 != o2 and o3 != o4:
-        denominator = (segment1.start.x - segment1.end.x) * (segment2.start.y - segment2.end.y) - (segment1.start.y - segment1.end.y) * (segment2.start.x - segment2.end.x)
-        num1 = (segment1.start.x * segment1.end.y - segment1.start.y * segment1.end.x)
-        num2 = (segment2.start.x * segment2.end.y - segment2.start.y * segment2.end.x)
-        x = (num1 * (segment2.start.x - segment2.end.x) - (segment1.start.x - segment1.end.x) * num2) / denominator
-        y = (num1 * (segment2.start.y - segment2.end.y) - (segment1.start.y - segment1.end.y) * num2) / denominator
-        intersection_point = Point(x, y)
-        if on_segment(segment1.start, intersection_point, segment1.end) and on_segment(segment2.start, intersection_point, segment2.end):
-            return intersection_point
-
-    if o1 == 0 and on_segment(segment1.start, segment2.start, segment1.end):
-        return segment2.start
-    if o2 == 0 and on_segment(segment1.start, segment2.end, segment1.end):
-        return segment2.end
-    if o3 == 0 and on_segment(segment2.start, segment1.start, segment2.end):
-        return segment1.start
-    if o4 == 0 and on_segment(segment2.start, segment1.end, segment2.end):
-        return segment1.end
+    if 0 <= t <= 1 and 0 <= u <= 1:
+        intersection_x = A1.x + t * (A2.x - A1.x)
+        intersection_y = A1.y + t * (A2.y - A1.y)
+        return Point(intersection_x, intersection_y)
 
     return None
 
@@ -182,6 +167,8 @@ segments = [
     Segment(Point(0, 2), Point(16, 7)),
     Segment(Point(13, 8), Point(10, 2)),
     Segment(Point(5, 4), Point(15, 4))
+    #Segment(Point(6.4, 3), Point(6.4, 5))
+
 ]
 
 intersections = find_intersections(segments)
@@ -190,4 +177,4 @@ for intersection in intersections:
     point, seg1, seg2 = intersection
     print(f"Intersection at: {point} between {seg1} and {seg2}")
 
-plot_segments_and_intersections(segments,intersections)
+plot_segments_and_intersections(segments, intersections)
